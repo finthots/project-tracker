@@ -9,6 +9,7 @@ from .models import (
     MilestoneTemplate,
     MilestoneTemplateItem,
     Project,
+    ProjectCategory,
     Task,
     Todo,
     User,
@@ -35,6 +36,7 @@ class TrackerUserAdminForm(forms.ModelForm):
             "full_name",
             "email",
             "role",
+            "reports_to",
             "is_active",
             "email_digest_enabled",
         )
@@ -58,9 +60,10 @@ class TrackerUserAdminForm(forms.ModelForm):
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     form = TrackerUserAdminForm
-    list_display = ("username", "full_name", "email", "role", "is_active", "email_digest_enabled")
-    list_filter = ("role", "is_active", "email_digest_enabled")
-    search_fields = ("username", "full_name", "email")
+    list_display = ("username", "full_name", "email", "role", "reports_to", "is_active", "email_digest_enabled")
+    list_filter = ("role", "reports_to", "is_active", "email_digest_enabled")
+    search_fields = ("username", "full_name", "email", "reports_to__username", "reports_to__full_name")
+    autocomplete_fields = ("reports_to",)
     readonly_fields = ("created_at",)
 
 
@@ -71,6 +74,12 @@ class ProjectAdmin(admin.ModelAdmin):
     search_fields = ("name", "client", "description")
     autocomplete_fields = ("created_by",)
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(ProjectCategory)
+class ProjectCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
 
 
 @admin.register(Task)

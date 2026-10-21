@@ -7,12 +7,12 @@ import {
   getTasks, getMilestones, getProjectComments, getActivity, addProjectComment,
   createTask, updateTask, deleteTask, reorderTasks, createMilestone, updateMilestone,
   deleteMilestone, updateProject, deleteProject, exportProjectXlsx, exportProjectPdf,
-  getProject, getUsers,
+  getProject, getUsers, getCategories,
 } from "@/api";
 import type {
   Task, Milestone, Comment, ActivityLog,
   TaskStatus, TaskPriority, MilestoneStatus,
-  ProjectStatus, Venture, ProjectCategory,
+  ProjectStatus, Venture,
 } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ import {
 
 const PROJECT_STATUSES: ProjectStatus[] = ["Planning", "Active", "On Hold", "Completed", "Cancelled"];
 const VENTURES: Venture[] = ["Finthots", "Sunyukth", "Personal"];
-const CATEGORIES: ProjectCategory[] = ["eLearning", "Energy", "Legal", "Compliance", "Other"];
 const TASK_STATUSES: TaskStatus[] = ["Not Started", "In Progress", "Blocked", "Review", "Done"];
 const TASK_PRIORITIES: TaskPriority[] = ["Low", "Medium", "High", "Critical"];
 const MILESTONE_STATUSES: MilestoneStatus[] = ["Pending", "Hit", "Missed", "Shared", "Signed off"];
@@ -87,6 +86,10 @@ export function ProjectDetail() {
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: () => getUsers().then((r) => r.data),
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => getCategories().then((r) => r.data),
   });
 
   // Mutations
@@ -646,6 +649,9 @@ export function ProjectDetail() {
       <div className={activeTab === "Settings" ? "" : "hidden"}>
         <ProjectSettings
           project={project}
+          users={users}
+          categories={categories}
+          isAdmin={isAdmin}
           onUpdate={(data) => updateProjectMutation.mutateAsync(data)}
           onDelete={
             isAdmin
@@ -1039,11 +1045,17 @@ function summarizeJson(obj: Record<string, unknown>): string {
 
 function ProjectSettings({
   project,
+  users,
+  categories,
+  isAdmin,
   onUpdate,
   onDelete,
   saving,
 }: {
   project: any;
+  users: any[];
+  categories: string[];
+  isAdmin: boolean;
   onUpdate: (data: any) => Promise<any>;
   onDelete?: () => void;
   saving: boolean;
@@ -1056,6 +1068,7 @@ function ProjectSettings({
     client: p.client ?? "",
     venture: p.venture ?? "",
     category: p.category ?? "",
+    created_by_id: p.created_by_id ? String(p.created_by_id) : "",
     status: p.status ?? "",
     start_date: toDateInput(p.start_date),
     target_end_date: toDateInput(p.target_end_date),
@@ -1136,10 +1149,16 @@ function ProjectSettings({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => <option key={c}>{c}</option>)}
             </Select>
           </div>
         </div>
+        {isAdmin && <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Project created by</label>
+          <Select value={form.created_by_id} onChange={(e) => set("created_by_id", e.target.value)}>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.username})</option>)}
+          </Select>
+        </div>}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <Select value={form.status} onChange={(e) => set("status", e.target.value)}>

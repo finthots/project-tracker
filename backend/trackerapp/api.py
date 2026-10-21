@@ -35,7 +35,10 @@ def user_brief(user):
 
 def user_data(user):
     return {**user_brief(user), "email": user.email, "is_active": user.is_active,
-            "email_digest_enabled": user.email_digest_enabled, "created_at": date_value(user.created_at)}
+            "email_digest_enabled": user.email_digest_enabled,
+            "reports_to_id": user.reports_to_id,
+            "reports_to": user_brief(user.reports_to),
+            "created_at": date_value(user.created_at)}
 
 
 def task_data(task):

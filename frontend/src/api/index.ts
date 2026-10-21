@@ -35,6 +35,8 @@ export const createUser = (data: Partial<User> & { password: string }) =>
   api.post<User>("/users", data);
 export const updateUser = (id: number, data: Partial<User> & { password?: string }) =>
   api.patch<User>(`/users/${id}`, data);
+export const getCategories = () => api.get<string[]>("/categories");
+export const createCategory = (name: string) => api.post<{ name: string }>("/categories", { name });
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 export const getProjects = (params?: Record<string, string>) =>
@@ -87,19 +89,20 @@ export const getActivity = (params?: Record<string, string | number>) =>
   api.get<ActivityLog[]>("/activity", { params });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-export const getMyTasks = () => api.get<Task[]>("/dashboard/my-tasks");
-export const getOverdueTasks = () => api.get<Task[]>("/dashboard/overdue");
-export const getDueThisWeek = () => api.get<Task[]>("/dashboard/due-this-week");
-export const getActiveProjects = () =>
-  api.get<{ venture: string; count: number }[]>("/dashboard/active-projects");
-export const getRecentActivity = () =>
-  api.get<ActivityLog[]>("/dashboard/recent-activity");
-export const getOverdueCount = () =>
-  api.get<{ count: number }>("/dashboard/overdue-count");
-export const getDashboardSummary = () => api.get<{
+const dashboardParams = (userId?: number) => userId ? { params: { user_id: userId } } : undefined;
+export const getMyTasks = (userId?: number) => api.get<Task[]>("/dashboard/my-tasks", dashboardParams(userId));
+export const getOverdueTasks = (userId?: number) => api.get<Task[]>("/dashboard/overdue", dashboardParams(userId));
+export const getDueThisWeek = (userId?: number) => api.get<Task[]>("/dashboard/due-this-week", dashboardParams(userId));
+export const getActiveProjects = (userId?: number) =>
+  api.get<{ venture: string; count: number }[]>("/dashboard/active-projects", dashboardParams(userId));
+export const getRecentActivity = (userId?: number) =>
+  api.get<ActivityLog[]>("/dashboard/recent-activity", dashboardParams(userId));
+export const getOverdueCount = (userId?: number) =>
+  api.get<{ count: number }>("/dashboard/overdue-count", dashboardParams(userId));
+export const getDashboardSummary = (userId?: number) => api.get<{
   active_projects: number; my_open_tasks: number; overdue_tasks: number;
   due_this_week: number; my_todos: number; completed_tasks: number;
-}>("/dashboard/summary");
+}>("/dashboard/summary", dashboardParams(userId));
 
 // ── Ask AI ────────────────────────────────────────────────────────────────────
 export const askTracker = (question: string) =>

@@ -1,6 +1,6 @@
 export type UserRole = "admin" | "member";
 export type Venture = "Finthots" | "Sunyukth" | "Personal";
-export type ProjectCategory = "eLearning" | "Energy" | "Legal" | "Compliance" | "Other";
+export type ProjectCategory = string;
 export type ProjectStatus = "Planning" | "Active" | "On Hold" | "Completed" | "Cancelled";
 export type TaskStatus = "Not Started" | "In Progress" | "Blocked" | "Review" | "Done";
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";
@@ -15,6 +15,8 @@ export interface User {
   role: UserRole;
   is_active: boolean;
   email_digest_enabled: boolean;
+  reports_to_id?: number | null;
+  reports_to?: UserBrief | null;
   created_at?: string;
 }
 

@@ -68,7 +68,7 @@ export function Users() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Name", "Username", "Email", "Role", "Status", ""].map((h) => (
+                {["Name", "Username", "Email", "Reports to", "Role", "Status", ""].map((h) => (
                   <th
                     key={h}
                     className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -91,6 +91,7 @@ export function Users() {
                   </td>
                   <td className="px-5 py-3 text-gray-500">{u.username}</td>
                   <td className="px-5 py-3 text-gray-500">{u.email}</td>
+                  <td className="px-5 py-3 text-gray-500">{u.reports_to?.full_name ?? "—"}</td>
                   <td className="px-5 py-3">
                     <Badge
                       variant={u.role === "admin" ? "warning" : "secondary"}
@@ -129,6 +130,7 @@ export function Users() {
       <CreateUserDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
+        users={users}
         onSubmit={(data) => createMutation.mutate(data)}
         loading={createMutation.isPending}
         error={error}
@@ -138,6 +140,7 @@ export function Users() {
       {editUser && (
         <EditUserDialog
           user={editUser}
+          users={users}
           onClose={() => setEditUser(null)}
           onSubmit={(data) => updateMutation.mutate({ id: editUser.id, data })}
           loading={updateMutation.isPending}
@@ -151,13 +154,14 @@ export function Users() {
 // ── Create User Dialog ────────────────────────────────────────────────────────
 
 function CreateUserDialog({
-  open, onClose, onSubmit, loading, error,
+  open, onClose, onSubmit, loading, error, users,
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { full_name: string; username: string; email: string; role: UserRole; password: string; is_active: boolean }) => void;
+  onSubmit: (data: { full_name: string; username: string; email: string; role: UserRole; password: string; is_active: boolean; reports_to_id?: number | null }) => void;
   loading: boolean;
   error: string;
+  users: User[];
 }) {
   const [form, setForm] = useState({
     full_name: "",
@@ -166,6 +170,7 @@ function CreateUserDialog({
     role: "member" as UserRole,
     password: "",
     confirmPassword: "",
+    reports_to_id: "",
   });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -182,6 +187,7 @@ function CreateUserDialog({
       role: form.role,
       password: form.password,
       is_active: true,
+      reports_to_id: form.reports_to_id ? Number(form.reports_to_id) : null,
     });
   };
 
@@ -224,6 +230,13 @@ function CreateUserDialog({
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Reports to</label>
+          <Select value={form.reports_to_id} onChange={(e) => set("reports_to_id", e.target.value)}>
+            <option value="">No reporting manager</option>
+            {users.filter((u) => u.is_active).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+          </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
@@ -277,9 +290,10 @@ function CreateUserDialog({
 // ── Edit User Dialog ──────────────────────────────────────────────────────────
 
 function EditUserDialog({
-  user, onClose, onSubmit, loading, error,
+  user, onClose, onSubmit, loading, error, users,
 }: {
   user: User;
+  users: User[];
   onClose: () => void;
   onSubmit: (data: Partial<User> & { password?: string }) => void;
   loading: boolean;
@@ -290,6 +304,7 @@ function EditUserDialog({
     email: user.email,
     role: user.role,
     is_active: user.is_active,
+    reports_to_id: user.reports_to_id ? String(user.reports_to_id) : "",
     newPassword: "",
     confirmPassword: "",
   });
@@ -304,6 +319,7 @@ function EditUserDialog({
       email: form.email,
       role: form.role,
       is_active: form.is_active,
+      reports_to_id: form.reports_to_id ? Number(form.reports_to_id) : null,
     };
     if (form.newPassword) {
       data.password = form.newPassword;
@@ -324,6 +340,13 @@ function EditUserDialog({
             onChange={(e) => set("full_name", e.target.value)}
             required
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Reports to</label>
+          <Select value={form.reports_to_id} onChange={(e) => set("reports_to_id", e.target.value)}>
+            <option value="">No reporting manager</option>
+            {users.filter((u) => u.is_active && u.id !== user.id).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+          </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

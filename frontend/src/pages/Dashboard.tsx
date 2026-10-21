@@ -1,13 +1,16 @@
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   getMyTasks, getOverdueTasks, getDueThisWeek,
   getActiveProjects, getRecentActivity, getProjects,
   getDashboardSummary,
+  getUsers,
 } from "@/api";
 import type { Task, ActivityLog, Project } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import {
   taskStatusColor, priorityColor, daysToDeadline, deadlineClass, formatDate,
 } from "@/lib/statusColors";
@@ -15,40 +18,57 @@ import { AlertTriangle, Clock, CheckSquare, BarChart2, Activity, FolderKanban, A
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const selectedMemberId = searchParams.get("user_id") ? Number(searchParams.get("user_id")) : undefined;
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => getUsers().then((r) => r.data) });
+  const reportIds = useMemo(() => {
+    const seen = new Set<number>();
+    let frontier = user ? [user.id] : [];
+    while (frontier.length) {
+      const next = users.filter((u) => frontier.includes(u.reports_to_id ?? -1)).map((u) => u.id).filter((id) => !seen.has(id));
+      next.forEach((id) => seen.add(id));
+      frontier = next;
+    }
+    return seen;
+  }, [users, user]);
+  const reportOptions = user?.role === "admin" ? users.filter((u) => u.is_active && u.role !== "admin") :
+    users.filter((u) => u.role !== "admin" && (reportIds.has(u.id) || u.id === user?.id));
+  const selectedMember = users.find((u) => u.id === selectedMemberId);
   const { data: summary } = useQuery({
-    queryKey: ["dashboardSummary"],
-    queryFn: () => getDashboardSummary().then((r) => r.data),
+    queryKey: ["dashboardSummary", selectedMemberId],
+    queryFn: () => getDashboardSummary(selectedMemberId).then((r) => r.data),
   });
 
   const { data: myTasks = [], isLoading: loadingMy } = useQuery({
-    queryKey: ["myTasks"],
-    queryFn: () => getMyTasks().then((r) => r.data),
+    queryKey: ["myTasks", selectedMemberId],
+    queryFn: () => getMyTasks(selectedMemberId).then((r) => r.data),
   });
 
   const { data: overdueTasks = [], isLoading: loadingOverdue } = useQuery({
-    queryKey: ["overdueTasks"],
-    queryFn: () => getOverdueTasks().then((r) => r.data),
+    queryKey: ["overdueTasks", selectedMemberId],
+    queryFn: () => getOverdueTasks(selectedMemberId).then((r) => r.data),
   });
 
   const { data: dueThisWeek = [], isLoading: loadingDue } = useQuery({
-    queryKey: ["dueThisWeek"],
-    queryFn: () => getDueThisWeek().then((r) => r.data),
+    queryKey: ["dueThisWeek", selectedMemberId],
+    queryFn: () => getDueThisWeek(selectedMemberId).then((r) => r.data),
   });
 
   const { data: activeProjects = [], isLoading: loadingActive } = useQuery({
-    queryKey: ["activeProjectsChart"],
-    queryFn: () => getActiveProjects().then((r) => r.data),
+    queryKey: ["activeProjectsChart", selectedMemberId],
+    queryFn: () => getActiveProjects(selectedMemberId).then((r) => r.data),
   });
 
   const { data: recentActivity = [], isLoading: loadingActivity } = useQuery({
-    queryKey: ["recentActivity"],
-    queryFn: () => getRecentActivity().then((r) => r.data),
+    queryKey: ["recentActivity", selectedMemberId],
+    queryFn: () => getRecentActivity(selectedMemberId).then((r) => r.data),
   });
 
   // Fetch full project list for name/client lookup
   const { data: allProjects = [] } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => getProjects().then((r) => r.data),
+    queryKey: ["projects", "dashboard", selectedMemberId],
+    queryFn: () => getProjects(selectedMemberId ? { user_id: String(selectedMemberId) } : undefined).then((r) => r.data),
     staleTime: 60_000,
   });
 
@@ -62,9 +82,19 @@ export function Dashboard() {
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">What needs attention today</p>
+        <h1 className="text-2xl font-bold text-gray-900">{selectedMember ? `${selectedMember.full_name}'s Dashboard` : "Dashboard"}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{selectedMember ? `Work overview for ${selectedMember.username}` : "What needs attention today"}</p>
       </div>
+      {(user?.role === "admin" || reportOptions.length > 1) && <div className="max-w-sm">
+        <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">View member dashboard</label>
+        <Select value={selectedMemberId ? String(selectedMemberId) : ""} onChange={(event) => {
+          if (event.target.value) setSearchParams({ user_id: event.target.value });
+          else setSearchParams({});
+        }}>
+          <option value="">My dashboard</option>
+          {reportOptions.filter((u) => u.id !== user?.id).map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
+        </Select>
+      </div>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <SummaryCard title="Active projects" value={summary?.active_projects} icon={<FolderKanban size={18} />} onClick={() => navigate("/")} />

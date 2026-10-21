@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx } from "@/api";
+import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx, getCategories } from "@/api";
 import type { Project, Venture, ProjectCategory, ProjectStatus } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import { ventureColor, projectStatusColor, daysToDeadline, deadlineClass } from 
 import { Plus, LayoutGrid, List, Download, CalendarDays, Search, X, ArrowRight } from "lucide-react";
 
 const VENTURES: Venture[] = ["Finthots", "Sunyukth", "Personal"];
-const CATEGORIES: ProjectCategory[] = ["eLearning", "Energy", "Legal", "Compliance", "Other"];
 const STATUSES: ProjectStatus[] = ["Planning", "Active", "On Hold", "Completed", "Cancelled"];
 
 export function Projects() {
@@ -35,6 +34,10 @@ export function Projects() {
   const { data: templates = [] } = useQuery({
     queryKey: ["milestoneTemplates"],
     queryFn: () => getMilestoneTemplates().then((r) => r.data),
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => getCategories().then((r) => r.data),
   });
 
   const createMutation = useMutation({
@@ -106,7 +109,7 @@ export function Projects() {
           onChange={(e) => setFilter("category", e.target.value)}
         >
           <option value="">All Categories</option>
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+          {categories.map((c) => <option key={c}>{c}</option>)}
         </Select>
         <div className="ml-auto hidden gap-1 md:flex" aria-label="Project view">
           <button
@@ -248,6 +251,7 @@ export function Projects() {
         onSubmit={(data) => createMutation.mutate(data)}
         loading={createMutation.isPending}
         templates={templates}
+        categories={categories}
       />
     </div>
   );
@@ -256,17 +260,18 @@ export function Projects() {
 // ── Create project dialog ─────────────────────────────────────────────────────
 
 function CreateProjectDialog({
-  open, onClose, onSubmit, loading, templates,
+  open, onClose, onSubmit, loading, templates, categories,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   loading: boolean;
   templates: any[];
+  categories: string[];
 }) {
   const [form, setForm] = useState({
     name: "", client: "", venture: "Finthots" as Venture,
-    category: "eLearning" as ProjectCategory, status: "Planning" as ProjectStatus,
+    category: "" as ProjectCategory, status: "Planning" as ProjectStatus,
     description: "", milestone_template_id: "",
   });
 
@@ -306,8 +311,9 @@ function CreateProjectDialog({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-            <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            <Select value={form.category} onChange={(e) => set("category", e.target.value)} required>
+              <option value="">Choose a category</option>
+              {categories.map((c) => <option key={c}>{c}</option>)}
             </Select>
           </div>
           <div>
@@ -344,7 +350,7 @@ function CreateProjectDialog({
         </div>
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="min-h-11 w-full sm:w-auto" disabled={loading || !form.name}>
+          <Button type="submit" className="min-h-11 w-full sm:w-auto" disabled={loading || !form.name || !form.category}>
             {loading ? "Creating…" : "Create Project"}
           </Button>
         </div>

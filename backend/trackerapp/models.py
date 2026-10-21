@@ -16,6 +16,8 @@ class User(ExistingTable):
     role = models.CharField(max_length=6, default="member")
     is_active = models.BooleanField(default=True)
     email_digest_enabled = models.BooleanField(default=False)
+    reports_to = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="direct_reports")
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -30,7 +32,7 @@ class Project(ExistingTable):
     name = models.CharField(max_length=256)
     client = models.CharField(max_length=256, null=True, blank=True)
     venture = models.CharField(max_length=8)
-    category = models.CharField(max_length=10)
+    category = models.CharField(max_length=64)
     status = models.CharField(max_length=9, default="Planning")
     start_date = models.DateTimeField(null=True, blank=True)
     target_end_date = models.DateTimeField(null=True, blank=True)
@@ -164,3 +166,15 @@ class Todo(ExistingTable):
 
     def __str__(self):
         return self.title
+
+
+class ProjectCategory(ExistingTable):
+    name = models.CharField(max_length=64, unique=True)
+
+    class Meta:
+        managed = True
+        db_table = "project_categories"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

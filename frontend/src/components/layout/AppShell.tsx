@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getOverdueCount } from "@/api";
 import {
   LayoutDashboard, FolderKanban, Users, Settings, LogOut,
-  Menu, X, Zap, BookOpen, CheckSquare, Sparkles,
+  Menu, X, Zap, BookOpen, CheckSquare, Sparkles, Tags,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { aiEnabled } from "@/config/features";
@@ -19,6 +19,7 @@ const navItems = [
 
 const adminNavItems = [
   { to: "/users", icon: Users, label: "Users" },
+  { to: "/categories", icon: Tags, label: "Categories" },
   // NOTE: "/settings" route does not exist yet — removed dead link.
   // Re-add here once a Settings page + route are implemented.
 ];

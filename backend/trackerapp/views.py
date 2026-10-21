@@ -21,7 +21,7 @@ from .api import (
     task_data, template_data, todo_data, user_data, verify_password,
 )
 from .models import (ActivityLog, Comment, Milestone, MilestoneTemplate,
-                     MilestoneTemplateItem, Project, Task, Todo, User)
+                     MilestoneTemplateItem, Project, ProjectCategory, Task, Todo, User)
 
 
 def service_worker(request):
@@ -42,6 +42,31 @@ def data_list(items, serialize):
 
 def not_found(model, pk):
     return model.objects.filter(pk=pk).first()
+
+
+def report_ids_for(user):
+    """Return all users in a manager's reporting tree, including direct reports."""
+    seen = set()
+    pending = [user.id]
+    while pending:
+        ids = list(User.objects.filter(reports_to_id__in=pending).values_list("id", flat=True))
+        pending = [pk for pk in ids if pk not in seen]
+        seen.update(pending)
+    return seen
+
+
+def dashboard_subject(request):
+    actor = request.tracker_user
+    raw_id = request.GET.get("user_id")
+    if not raw_id:
+        return actor, None
+    try:
+        subject = User.objects.select_related("reports_to").get(pk=int(raw_id), is_active=True)
+    except (ValueError, User.DoesNotExist):
+        return None, error("Member not found", 404)
+    if actor.role != "admin" and subject.id != actor.id and (subject.role == "admin" or subject.id not in report_ids_for(actor)):
+        return None, error("You can only view your own dashboard or a member in your reporting line", 403)
+    return subject, None
 
 
 def assign_fields(obj, data, fields, date_fields=(), enum_fields=None):
@@ -103,11 +128,17 @@ def users_view(request):
     required = ("username", "password", "full_name", "email")
     if any(not str(data.get(key, "")).strip() for key in required):
         return error("Username, password, name and email are required")
+    reports_to = None
+    reports_to_id = data.get("reports_to_id")
+    if reports_to_id not in (None, ""):
+        reports_to = User.objects.filter(pk=reports_to_id, is_active=True).first()
+        if not reports_to:
+            return error("Reporting user not found")
     try:
         user = User.objects.create(username=data["username"].strip(),
                                    password_hash=hash_password(data["password"]),
                                    full_name=data["full_name"].strip(), email=data["email"].strip(),
-                                   role=data.get("role", "member"))
+                                   role=data.get("role", "member"), reports_to=reports_to)
     except IntegrityError:
         return error("Username or email already exists")
     log_activity(request.tracker_user, "user", user.id, "create", after={"username": user.username})
@@ -127,10 +158,23 @@ def user_detail(request, pk):
     if actor.role != "admin" and actor.id != user.id:
         return error("Cannot edit other users", 403)
     data = body_data(request)
-    before = {"full_name": user.full_name, "email": user.email, "role": user.role}
+    before = {"full_name": user.full_name, "email": user.email, "role": user.role,
+              "reports_to_id": user.reports_to_id}
     allowed = ("full_name", "email", "email_digest_enabled")
     if actor.role == "admin":
         allowed += ("role", "is_active")
+        reports_to_id = data.get("reports_to_id", user.reports_to_id)
+        if reports_to_id in (None, ""):
+            user.reports_to = None
+        else:
+            manager = User.objects.filter(pk=reports_to_id, is_active=True).first()
+            if not manager:
+                return error("Reporting user not found")
+            if manager.id == user.id:
+                return error("A user cannot report to themselves")
+            if user.id in report_ids_for(manager):
+                return error("Reporting assignments cannot create a cycle")
+            user.reports_to = manager
     try:
         assign_fields(user, data, allowed)
         if data.get("password"):
@@ -150,6 +194,11 @@ def user_detail(request, pk):
 def projects_view(request):
     if request.method == "GET":
         projects = Project.objects.select_related("created_by").order_by("-created_at")
+        if request.GET.get("user_id"):
+            subject, denied = dashboard_subject(request)
+            if denied:
+                return denied
+            projects = projects.filter(Q(created_by=subject) | Q(tasks__owner=subject)).distinct()
         for key in ("venture", "category", "status"):
             value = request.GET.get(key)
             if value:
@@ -201,6 +250,11 @@ def project_detail(request, pk):
         assign_fields(project, data, ("name", "client", "venture", "category", "status", "start_date",
                                       "target_end_date", "actual_end_date", "description"),
                       ("start_date", "target_end_date", "actual_end_date"), {"status": PROJECT_STATUSES})
+        if request.tracker_user.role == "admin" and "created_by_id" in data:
+            creator = User.objects.filter(pk=data["created_by_id"]).first()
+            if not creator:
+                return error("Project creator not found")
+            project.created_by = creator
         project.updated_at = timezone.now()
         project.save()
     except ValueError as exc:
@@ -208,6 +262,25 @@ def project_detail(request, pk):
     log_activity(request.tracker_user, "project", pk, "update", before=before,
                  after={"name": project.name, "status": project.status})
     return JsonResponse(project_data(project))
+
+
+@require_user
+def categories_view(request):
+    if request.method == "GET":
+        return data_list(ProjectCategory.objects.order_by("name"), lambda category: category.name)
+    if request.method != "POST":
+        return error("Method not allowed", 405)
+    if request.tracker_user.role != "admin":
+        return error("Admin required", 403)
+    name = str(body_data(request).get("name", "")).strip()
+    if not name:
+        return error("Category name is required")
+    if len(name) > 64:
+        return error("Category name must be 64 characters or fewer")
+    category, created = ProjectCategory.objects.get_or_create(name=name)
+    if not created:
+        return error("Category already exists", 409)
+    return JsonResponse({"name": category.name}, status=201)
 
 
 def validate_task_refs(project_id, owner_id, dependency_id, self_id=None):
@@ -449,7 +522,12 @@ def dashboard_view(request, action):
     if request.method != "GET":
         return error("Method not allowed", 405)
     today = timezone.localdate()
-    user = request.tracker_user
+    user, denied = dashboard_subject(request)
+    if denied:
+        return denied
+    project_scope = Project.objects.all()
+    if user.role != "admin":
+        project_scope = project_scope.filter(Q(created_by=user) | Q(tasks__owner=user)).distinct()
     if action == "my-tasks":
         qs = Task.objects.filter(owner_id=user.id).exclude(status="Done").exclude(
             project__status__in=["Completed", "Cancelled"]).select_related("owner")
@@ -465,13 +543,16 @@ def dashboard_view(request, action):
         count = open_tasks_for(user).filter(planned_end__date__lt=today).count()
         return JsonResponse({"count": count})
     if action == "active-projects":
-        rows = Project.objects.filter(status="Active").values("venture").annotate(count=Count("id"))
+        rows = project_scope.filter(status="Active").values("venture").annotate(count=Count("id"))
         return JsonResponse(list(rows), safe=False)
     if action == "recent-activity":
-        return data_list(ActivityLog.objects.select_related("user").order_by("-created_at")[:20], activity_data)
+        activity = ActivityLog.objects.select_related("user").order_by("-created_at")
+        if user.role != "admin" or request.GET.get("user_id"):
+            activity = activity.filter(user=user)
+        return data_list(activity[:20], activity_data)
     if action == "summary":
         open_tasks = open_tasks_for(user)
-        return JsonResponse({"active_projects": Project.objects.filter(status="Active").count(),
+        return JsonResponse({"active_projects": project_scope.filter(status="Active").count(),
                              "my_open_tasks": open_tasks.filter(owner_id=user.id).count(),
                              "overdue_tasks": open_tasks.filter(planned_end__date__lt=today).count(),
                              "due_this_week": open_tasks.filter(planned_end__date__gte=today,

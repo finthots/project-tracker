@@ -12,6 +12,7 @@ import { Todos } from "@/pages/Todos";
 import { AskAI } from "@/pages/AskAI";
 import { aiEnabled } from "@/config/features";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { Categories } from "@/pages/Categories";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,6 +72,7 @@ function AppRoutes() {
       {/* Protected — admin only */}
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/users" element={<Users />} />
+        <Route path="/categories" element={<Categories />} />
       </Route>
 
       {/* Fallback */}
