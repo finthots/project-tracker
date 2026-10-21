@@ -50,33 +50,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Zap size={18} className="text-amber-500" />
         </div>
         <span className="font-semibold text-gray-900">ProjectTracker</span>
-        <div className="ml-auto"><NotificationBell /></div>
       </div>
 
       <div className="flex-1 px-3 py-4 space-y-1">
         {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              )
-            }
-            onClick={() => setSidebarOpen(false)}
-          >
-            <Icon size={16} />
-            {label}
-            {label === "Dashboard" && overdueCount > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                {overdueCount}
-              </span>
-            )}
-          </NavLink>
+          <div key={to}>
+            <NavLink
+              to={to}
+              end={to === "/"}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                )
+              }
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Icon size={16} />
+              {label}
+              {label === "Dashboard" && overdueCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {overdueCount}
+                </span>
+              )}
+            </NavLink>
+            {label === "My Todos" && <NotificationBell variant="sidebar" />}
+          </div>
         ))}
 
         {user?.role === "admin" && (
