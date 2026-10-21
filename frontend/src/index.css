@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background-color: #f9fafb;
+    color: #111827;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}

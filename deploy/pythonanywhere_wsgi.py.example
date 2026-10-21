@@ -1,0 +1,15 @@
+import os
+import sys
+
+
+PROJECT_ROOT = "/home/YOUR_USERNAME/Project-Tracker"
+BACKEND_ROOT = os.path.join(PROJECT_ROOT, "backend")
+
+if BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, BACKEND_ROOT)
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tracker.settings")
+
+from django.core.wsgi import get_wsgi_application
+
+application = get_wsgi_application()
