@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx, getCategories } from "@/api";
+import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx, getCategories, getUsers, updateProject } from "@/api";
 import type { Project, Venture, ProjectCategory, ProjectStatus, CategoryOption } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 import { ventureColor, projectStatusColor, daysToDeadline, deadlineClass } from "@/lib/statusColors";
 import { Plus, LayoutGrid, List, Download, CalendarDays, Search, X, ArrowRight } from "lucide-react";
 
@@ -18,8 +19,10 @@ const STATUSES: ProjectStatus[] = ["Planning", "Active", "On Hold", "Completed",
 export function Projects() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [view, setView] = useState<"card" | "table">("card");
-  const [filters, setFilters] = useState({ venture: "", status: "", category: "" });
+  const [filters, setFilters] = useState({ venture: "", status: "", category: "", user_id: "" });
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -39,6 +42,11 @@ export function Projects() {
     queryKey: ["categories"],
     queryFn: () => getCategories().then((r) => r.data),
   });
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => getUsers().then((r) => r.data),
+    enabled: isAdmin,
+  });
 
   const createMutation = useMutation({
     mutationFn: createProject,
@@ -49,6 +57,12 @@ export function Projects() {
     },
   });
 
+  const ownerMutation = useMutation({
+    mutationFn: ({ projectId, userId }: { projectId: number; userId: number }) =>
+      updateProject(projectId, { created_by_id: userId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+
   const setFilter = (k: string, v: string) =>
     setFilters((f) => ({ ...f, [k]: v }));
 
@@ -56,7 +70,16 @@ export function Projects() {
     p.task_count > 0 ? Math.round((p.done_task_count / p.task_count) * 100) : 0;
   const visibleProjects = projects.filter((p) =>
     `${p.name} ${p.client ?? ""} ${p.venture} ${p.category}`.toLowerCase().includes(search.trim().toLowerCase()));
-  const hasFilters = Boolean(search || filters.venture || filters.status || filters.category);
+  const hasFilters = Boolean(search || filters.venture || filters.status || filters.category || filters.user_id);
+  const creatorControl = (project: Project) => isAdmin ? (
+    <label className="flex items-center gap-2 text-xs text-gray-500" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      Creator
+      <Select aria-label={`Change creator for ${project.name}`} className="min-h-9 max-w-44" value={String(project.created_by_id)}
+        onChange={(e) => ownerMutation.mutate({ projectId: project.id, userId: Number(e.target.value) })}>
+        {users.filter((u) => u.is_active).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+      </Select>
+    </label>
+  ) : null;
 
   return (
     <div className="min-w-0">
@@ -84,6 +107,15 @@ export function Projects() {
           {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"
             className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"><X size={16} /></button>}
         </div>
+        {isAdmin && <Select
+          className="col-span-2 min-h-11 min-w-0 text-sm sm:w-48"
+          aria-label="Filter projects by member"
+          value={filters.user_id}
+          onChange={(e) => setFilter("user_id", e.target.value)}
+        >
+          <option value="">All Projects</option>
+          {users.filter((u) => u.is_active && u.role !== "admin").map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+        </Select>}
         <Select
           className="min-h-11 min-w-0 text-sm sm:w-36"
           aria-label="Filter by venture"
@@ -173,6 +205,7 @@ export function Projects() {
                       />
                     </div>
                   </div>
+                  {creatorControl(p)}
 
                   {complete ? <div className="text-xs font-medium text-emerald-700">Work complete</div> : days !== null && (
                     <div className={`flex items-center gap-1 text-xs ${deadlineClass(days)}`}>
@@ -194,7 +227,7 @@ export function Projects() {
           {!isLoading && visibleProjects.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center">
               <p className="text-sm font-medium text-gray-700">{hasFilters ? "No projects match your filters." : "No projects yet. Create your first project."}</p>
-              {hasFilters && <Button variant="outline" size="sm" className="mt-3 min-h-10" onClick={() => { setSearch(""); setFilters({ venture: "", status: "", category: "" }); }}>Clear filters</Button>}
+              {hasFilters && <Button variant="outline" size="sm" className="mt-3 min-h-10" onClick={() => { setSearch(""); setFilters({ venture: "", status: "", category: "", user_id: "" }); }}>Clear filters</Button>}
             </div>
           )}
         </div>
@@ -203,7 +236,7 @@ export function Projects() {
           <table className="min-w-[720px] w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Name", "Client", "Venture", "Status", "Progress", "Deadline"].map((h) => (
+                {["Name", "Client", "Venture", "Status", "Progress", "Deadline", ...(isAdmin ? ["Creator"] : [])].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     {h}
                   </th>
@@ -211,7 +244,7 @@ export function Projects() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {!isLoading && visibleProjects.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">{hasFilters ? "No projects match your filters." : "No projects yet."}</td></tr>}
+              {!isLoading && visibleProjects.length === 0 && <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-10 text-center text-sm text-gray-500">{hasFilters ? "No projects match your filters." : "No projects yet."}</td></tr>}
               {visibleProjects.map((p) => {
                 const complete = p.status === "Completed" || p.status === "Cancelled" || (p.task_count > 0 && p.done_task_count === p.task_count);
                 const days = complete ? null : daysToDeadline(p.target_end_date);
@@ -237,6 +270,7 @@ export function Projects() {
                     <td className={`px-4 py-3 ${deadlineClass(days)}`}>
                       {complete ? "Complete" : days === null ? "—" : days < 0 ? `${Math.abs(days)}d overdue` : `${days}d`}
                     </td>
+                    {isAdmin && <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>{creatorControl(p)}</td>}
                   </tr>
                 );
               })}

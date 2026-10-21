@@ -199,6 +199,11 @@ def projects_view(request):
             if denied:
                 return denied
             projects = projects.filter(Q(created_by=subject) | Q(tasks__owner=subject)).distinct()
+        elif request.tracker_user.role != "admin":
+            visible_user_ids = report_ids_for(request.tracker_user) | {request.tracker_user.id}
+            projects = projects.filter(
+                Q(created_by_id__in=visible_user_ids) | Q(tasks__owner_id__in=visible_user_ids)
+            ).distinct()
         for key in ("venture", "category", "status"):
             value = request.GET.get(key)
             if value:
