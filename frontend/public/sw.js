@@ -1,7 +1,7 @@
 const CACHE_NAME = "project-tracker-v1";
 const APP_SHELL = [
   "/",
-  "/static/manifest.webmanifest",
+  "/static/manifest.json",
   "/static/favicon.svg",
   "/static/pwa-192.png",
   "/static/pwa-512.png"
