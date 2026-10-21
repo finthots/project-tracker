@@ -37,6 +37,12 @@ export function PwaInstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!visible) return;
+    const timeout = window.setTimeout(dismiss, 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [visible]);
+
   const install = async () => {
     if (!installPrompt) return;
     await installPrompt.prompt();
@@ -45,10 +51,15 @@ export function PwaInstallPrompt() {
     setVisible(false);
   };
 
-  const dismiss = () => {
-    sessionStorage.setItem("pwa-install-dismissed", "true");
+  function dismiss() {
+    try {
+      sessionStorage.setItem("pwa-install-dismissed", "true");
+    } catch {
+      // Dismissal should still work when browser storage is unavailable.
+    }
+    setInstallPrompt(null);
     setVisible(false);
-  };
+  }
 
   if (!visible || !installPrompt) return null;
 
@@ -86,6 +97,13 @@ export function PwaInstallPrompt() {
         >
           <Download className="h-4 w-4" />
           Install app
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="relative mt-2 w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+        >
+          Cancel
         </button>
       </div>
     </div>
