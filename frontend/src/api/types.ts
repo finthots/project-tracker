@@ -116,6 +116,16 @@ export interface ActivityLog {
   created_at?: string;
 }
 
+export interface UserNotification {
+  id: number;
+  kind: "collaboration_added" | "task_assigned";
+  message: string;
+  project_id?: number | null;
+  task_id?: number | null;
+  created_at?: string;
+  read_at?: string | null;
+}
+
 export interface Todo {
   id: number;
   user_id: number;

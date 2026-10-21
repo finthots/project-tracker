@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
-from .models import ActivityLog, User
+from .models import ActivityLog, Notification, User
 
 PROJECT_STATUSES = {"On Hold": "OnHold"}
 TASK_STATUSES = {"Not Started": "NotStarted", "In Progress": "InProgress"}
@@ -87,6 +87,13 @@ def activity_data(a):
             "entity_type": a.entity_type, "entity_id": a.entity_id, "action": a.action,
             "before_json": a.before_json, "after_json": a.after_json,
             "created_at": date_value(a.created_at)}
+
+
+def notification_data(notification):
+    return {"id": notification.id, "kind": notification.kind, "message": notification.message,
+            "project_id": notification.project_id, "task_id": notification.task_id,
+            "created_at": date_value(notification.created_at),
+            "read_at": date_value(notification.read_at)}
 
 
 def todo_data(t):

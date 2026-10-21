@@ -151,6 +151,28 @@ class ActivityLog(ExistingTable):
         return f"{self.action} {self.entity_type} #{self.entity_id}"
 
 
+class Notification(ExistingTable):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    actor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name="notifications_sent")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.CASCADE,
+                                related_name="notifications")
+    task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.CASCADE,
+                             related_name="notifications")
+    kind = models.CharField(max_length=32)
+    message = models.CharField(max_length=256)
+    created_at = models.DateTimeField(default=timezone.now)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = True
+        db_table = "notifications"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.kind} notification for {self.recipient}"
+
+
 class Todo(ExistingTable):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=256)

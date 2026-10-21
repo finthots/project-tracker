@@ -2,13 +2,13 @@ import api from "./client";
 import type {
   User, Project, Task, Milestone, MilestoneTemplate,
   Comment, ActivityLog, Venture, ProjectCategory, ProjectStatus,
-  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption,
+  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption, UserNotification,
 } from "./types";
 
 export type {
   User, Project, Task, Milestone, MilestoneTemplate,
   Comment, ActivityLog, Venture, ProjectCategory, ProjectStatus,
-  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption,
+  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption, UserNotification,
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -88,6 +88,8 @@ export const deleteComment = (id: number) => api.delete(`/comments/${id}`);
 // ── Activity ──────────────────────────────────────────────────────────────────
 export const getActivity = (params?: Record<string, string | number>) =>
   api.get<ActivityLog[]>("/activity", { params });
+export const getNotifications = () => api.get<{ notifications: UserNotification[]; unread_count: number }>("/notifications");
+export const markNotificationRead = (id: number) => api.post<UserNotification>(`/notifications/${id}/read`);
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 const dashboardParams = (userId?: number) => userId ? { params: { user_id: userId } } : undefined;

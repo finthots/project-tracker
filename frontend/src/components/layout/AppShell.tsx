@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { aiEnabled } from "@/config/features";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 const navItems = [
   { to: "/", icon: FolderKanban, label: "Projects" },
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Zap size={18} className="text-amber-500" />
         </div>
         <span className="font-semibold text-gray-900">ProjectTracker</span>
+        <div className="ml-auto"><NotificationBell /></div>
       </div>
 
       <div className="flex-1 px-3 py-4 space-y-1">
@@ -166,8 +168,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} className="text-gray-600" />
           </button>
           <span className="font-semibold text-gray-900">ProjectTracker</span>
+          <div className="ml-auto"><NotificationBell /></div>
           {overdueCount > 0 && (
-            <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
               {overdueCount} overdue
             </span>
           )}

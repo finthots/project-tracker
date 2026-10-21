@@ -26,6 +26,8 @@ urlpatterns = [
     path("api/milestone-templates/<int:pk>", views.template_detail),
     path("api/comments/<int:pk>", views.comment_detail),
     path("api/activity", views.activity_view),
+    path("api/notifications", views.notifications_view),
+    path("api/notifications/<int:pk>/read", views.notification_read),
     path("api/dashboard/<str:action>", views.dashboard_view),
     path("api/todos", views.todos_view),
     path("api/todos/<int:pk>", views.todo_detail),

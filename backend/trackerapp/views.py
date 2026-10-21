@@ -17,10 +17,10 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from .api import (
     PROJECT_STATUSES, TASK_STATUSES, MILESTONE_STATUSES, activity_data, body_data,
     comment_data, current_user, error, hash_password, inward, log_activity,
-    milestone_data, parse_date_time, project_data, require_user, set_cookie,
+    milestone_data, notification_data, parse_date_time, project_data, require_user, set_cookie,
     task_data, template_data, todo_data, user_data, verify_password,
 )
-from .models import (ActivityLog, Comment, Milestone, MilestoneTemplate,
+from .models import (ActivityLog, Comment, Milestone, MilestoneTemplate, Notification,
                      MilestoneTemplateItem, Project, ProjectCategory, Task, Todo, User)
 
 
@@ -79,6 +79,12 @@ def collaborator_options_for(actor, project):
         return User.objects.filter(is_active=True)
     team_ids = report_ids_for(actor) | {actor.id, project.created_by_id}
     return User.objects.filter(is_active=True, id__in=team_ids)
+
+
+def notify_user(recipient, actor, kind, message, project=None, task=None):
+    if recipient and recipient.is_active:
+        Notification.objects.create(recipient=recipient, actor=actor, kind=kind,
+                                    message=message, project=project, task=task)
 
 
 def assign_fields(obj, data, fields, date_fields=(), enum_fields=None):
@@ -278,7 +284,11 @@ def project_detail(request, pk):
         allowed_ids = set(collaborator_options_for(request.tracker_user, project).values_list("id", flat=True))
         if not collaborator_ids.issubset(allowed_ids):
             return error("Choose active users in your reporting team")
+        existing_ids = set(project.collaborators.values_list("id", flat=True))
         project.collaborators.set(collaborator_ids)
+        for collaborator in User.objects.filter(id__in=collaborator_ids - existing_ids, is_active=True):
+            notify_user(collaborator, request.tracker_user, "collaboration_added",
+                        f"Added as a collaborator on {project.name}", project=project)
     try:
         assign_fields(project, data, ("name", "client", "venture", "category", "status", "start_date",
                                       "target_end_date", "actual_end_date", "description"),
@@ -370,6 +380,9 @@ def project_tasks(request, pk):
     except ValueError as exc:
         return error(str(exc))
     log_activity(request.tracker_user, "task", task.id, "create", after={"title": task.title, "project_id": pk})
+    if task.owner_id:
+        notify_user(task.owner, request.tracker_user, "task_assigned",
+                    f"Assigned to {task.title} in {task.project.name}", project=task.project, task=task)
     return JsonResponse(task_data(task), status=201)
 
 
@@ -392,6 +405,7 @@ def task_detail(request, pk):
     if problem:
         return error(problem, 422)
     before = {"title": task.title, "status": task.status}
+    previous_owner_id = task.owner_id
     try:
         assign_fields(task, data, TASK_FIELDS, TASK_DATES, {"status": TASK_STATUSES})
         if task.status == "Done" and task.actual_end is None:
@@ -404,6 +418,9 @@ def task_detail(request, pk):
         return error(str(exc))
     log_activity(request.tracker_user, "task", pk, "update", before=before,
                  after={"title": task.title, "status": task.status})
+    if task.owner_id and task.owner_id != previous_owner_id:
+        notify_user(task.owner, request.tracker_user, "task_assigned",
+                    f"Assigned to {task.title} in {task.project.name}", project=task.project, task=task)
     return JsonResponse(task_data(task))
 
 
@@ -556,6 +573,29 @@ def activity_view(request):
     except ValueError:
         return error("Invalid pagination")
     return data_list(qs[offset:offset + limit], activity_data)
+
+
+@require_user
+def notifications_view(request):
+    user = request.tracker_user
+    if request.method == "GET":
+        notifications = Notification.objects.filter(recipient=user).select_related("project", "task")[:30]
+        return JsonResponse({"notifications": [notification_data(n) for n in notifications],
+                             "unread_count": Notification.objects.filter(recipient=user, read_at__isnull=True).count()})
+    return error("Method not allowed", 405)
+
+
+@require_user
+def notification_read(request, pk):
+    if request.method != "POST":
+        return error("Method not allowed", 405)
+    notification = Notification.objects.filter(pk=pk, recipient=request.tracker_user).first()
+    if not notification:
+        return error("Notification not found", 404)
+    if notification.read_at is None:
+        notification.read_at = timezone.now()
+        notification.save(update_fields=["read_at"])
+    return JsonResponse(notification_data(notification))
 
 
 def open_tasks_for(user):
