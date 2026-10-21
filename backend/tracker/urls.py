@@ -5,6 +5,7 @@ from trackerapp import views
 from trackerapp.ai import ask_view
 
 urlpatterns = [
+    path("sw.js", views.service_worker),
     path("admin/", admin.site.urls),
     path("api/ai/ask", ask_view),
     path("api/auth/<str:action>", views.auth_view),

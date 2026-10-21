@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="background" x1="70" y1="54" x2="442" y2="458" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e3a8a"/>
+      <stop offset="0.56" stop-color="#312e81"/>
+      <stop offset="1" stop-color="#581c87"/>
+    </linearGradient>
+    <filter id="shadow" x="54" y="65" width="404" height="395" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="106" fill="url(#background)"/>
+  <circle cx="412" cy="88" r="91" fill="#38bdf8" opacity="0.12"/>
+  <circle cx="86" cy="424" r="118" fill="#a855f7" opacity="0.14"/>
+  <rect x="66" y="66" width="380" height="380" rx="90" fill="#ffffff" opacity="0.08" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+  <image href="favicon.svg" x="94" y="103" width="324" height="310" filter="url(#shadow)"/>
+</svg>

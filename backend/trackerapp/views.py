@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
+from pathlib import Path
 
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
@@ -7,7 +8,8 @@ from reportlab.pdfgen import canvas
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-from django.http import HttpResponse, JsonResponse
+from django.conf import settings
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -20,6 +22,14 @@ from .api import (
 )
 from .models import (ActivityLog, Comment, Milestone, MilestoneTemplate,
                      MilestoneTemplateItem, Project, Task, Todo, User)
+
+
+def service_worker(request):
+    service_worker_path = Path(settings.FRONTEND_DIST_DIR) / "sw.js"
+    response = FileResponse(service_worker_path.open("rb"), content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
 
 
 def method(request, *allowed):

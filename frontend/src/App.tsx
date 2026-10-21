@@ -11,6 +11,7 @@ import { Profile } from "@/pages/Profile";
 import { Todos } from "@/pages/Todos";
 import { AskAI } from "@/pages/AskAI";
 import { aiEnabled } from "@/config/features";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -83,6 +84,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <PwaInstallPrompt />
           <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
