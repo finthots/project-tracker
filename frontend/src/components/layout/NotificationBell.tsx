@@ -30,8 +30,8 @@ export function NotificationBell({ variant = "icon" }: { variant?: "icon" | "sid
       <button
         type="button"
         aria-label={`Notifications${data?.unread_count ? `, ${data.unread_count} unread` : ""}`}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        aria-expanded={variant === "icon" ? open : undefined}
+        onClick={() => variant === "sidebar" ? navigate("/notifications") : setOpen((value) => !value)}
         className={variant === "sidebar"
           ? "relative mt-1 flex min-h-10 w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
           : "relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"}
@@ -42,7 +42,7 @@ export function NotificationBell({ variant = "icon" }: { variant?: "icon" | "sid
           ? <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-0.5 text-xs font-semibold text-white">{data.unread_count}</span>
           : <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />)}
       </button>
-      {open && (
+      {variant === "icon" && open && (
         <div className="absolute right-0 top-full z-[120] mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <div>

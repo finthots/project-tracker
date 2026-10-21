@@ -13,6 +13,7 @@ import { AskAI } from "@/pages/AskAI";
 import { aiEnabled } from "@/config/features";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { Categories } from "@/pages/Categories";
+import { Notifications } from "@/pages/Notifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/todos" element={<Todos />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/ask-ai" element={aiEnabled ? <AskAI /> : <Navigate to="/" replace />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
