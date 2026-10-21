@@ -13,6 +13,7 @@ import type {
   Task, Milestone, Comment, ActivityLog,
   TaskStatus, TaskPriority, MilestoneStatus,
   ProjectStatus, Venture,
+  CategoryOption,
 } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1054,7 +1055,7 @@ function ProjectSettings({
 }: {
   project: any;
   users: any[];
-  categories: string[];
+  categories: CategoryOption[];
   isAdmin: boolean;
   onUpdate: (data: any) => Promise<any>;
   onDelete?: () => void;
@@ -1149,7 +1150,7 @@ function ProjectSettings({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <Select value={form.category} onChange={(e) => set("category", e.target.value)}>
-              {categories.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => <option key={c.id}>{c.name}</option>)}
             </Select>
           </div>
         </div>

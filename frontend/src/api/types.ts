@@ -1,6 +1,7 @@
 export type UserRole = "admin" | "member";
 export type Venture = "Finthots" | "Sunyukth" | "Personal";
 export type ProjectCategory = string;
+export interface CategoryOption { id: number; name: string }
 export type ProjectStatus = "Planning" | "Active" | "On Hold" | "Completed" | "Cancelled";
 export type TaskStatus = "Not Started" | "In Progress" | "Blocked" | "Review" | "Done";
 export type TaskPriority = "Low" | "Medium" | "High" | "Critical";

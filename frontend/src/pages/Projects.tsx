@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx, getCategories } from "@/api";
-import type { Project, Venture, ProjectCategory, ProjectStatus } from "@/api/types";
+import type { Project, Venture, ProjectCategory, ProjectStatus, CategoryOption } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,7 +109,7 @@ export function Projects() {
           onChange={(e) => setFilter("category", e.target.value)}
         >
           <option value="">All Categories</option>
-          {categories.map((c) => <option key={c}>{c}</option>)}
+          {categories.map((c) => <option key={c.id}>{c.name}</option>)}
         </Select>
         <div className="ml-auto hidden gap-1 md:flex" aria-label="Project view">
           <button
@@ -267,7 +267,7 @@ function CreateProjectDialog({
   onSubmit: (data: any) => void;
   loading: boolean;
   templates: any[];
-  categories: string[];
+  categories: CategoryOption[];
 }) {
   const [form, setForm] = useState({
     name: "", client: "", venture: "Finthots" as Venture,
@@ -313,7 +313,7 @@ function CreateProjectDialog({
             <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
             <Select value={form.category} onChange={(e) => set("category", e.target.value)} required>
               <option value="">Choose a category</option>
-              {categories.map((c) => <option key={c}>{c}</option>)}
+              {categories.map((c) => <option key={c.id}>{c.name}</option>)}
             </Select>
           </div>
           <div>

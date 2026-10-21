@@ -267,7 +267,8 @@ def project_detail(request, pk):
 @require_user
 def categories_view(request):
     if request.method == "GET":
-        return data_list(ProjectCategory.objects.order_by("name"), lambda category: category.name)
+        return data_list(ProjectCategory.objects.order_by("name"),
+                         lambda category: {"id": category.id, "name": category.name})
     if request.method != "POST":
         return error("Method not allowed", 405)
     if request.tracker_user.role != "admin":
@@ -281,6 +282,21 @@ def categories_view(request):
     if not created:
         return error("Category already exists", 409)
     return JsonResponse({"name": category.name}, status=201)
+
+
+@require_user
+def category_detail(request, pk):
+    if request.method != "DELETE":
+        return error("Method not allowed", 405)
+    if request.tracker_user.role != "admin":
+        return error("Admin required", 403)
+    category = ProjectCategory.objects.filter(pk=pk).first()
+    if not category:
+        return error("Category not found", 404)
+    if Project.objects.filter(category=category.name).exists():
+        return error("This category is assigned to projects. Reassign those projects before deleting it.", 409)
+    category.delete()
+    return HttpResponse(status=204)
 
 
 def validate_task_refs(project_id, owner_id, dependency_id, self_id=None):

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCategory, getCategories } from "@/api";
+import { createCategory, deleteCategory, getCategories } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Tags } from "lucide-react";
+import { Plus, Tags, Trash2 } from "lucide-react";
 
 export function Categories() {
   const queryClient = useQueryClient();
@@ -25,12 +25,23 @@ export function Categories() {
       setError(detail ?? "Could not add category");
     },
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      setError("");
+    },
+    onError: (error: unknown) => {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail ?? "Could not delete category");
+    },
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Project categories</h1>
-        <p className="mt-1 text-sm text-gray-500">Add categories that the team can choose for new projects.</p>
+        <p className="mt-1 text-sm text-gray-500">Manage the categories the team can choose for projects.</p>
       </div>
 
       <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) mutation.mutate(name.trim()); }}
@@ -49,8 +60,16 @@ export function Categories() {
         </div>
         {isLoading ? <p className="p-5 text-sm text-gray-400">Loading…</p> : categories.length ? (
           <ul className="divide-y divide-gray-100">
-            {categories.map((category) => <li key={category} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-800">
-              <Tags size={15} className="text-violet-600" />{category}
+            {categories.map((category) => <li key={category.id} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-800">
+              <Tags size={15} className="text-violet-600" />
+              <span className="flex-1">{category.name}</span>
+              <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${category.name}`}
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete category “${category.name}”?`)) deleteMutation.mutate(category.id);
+                }}>
+                <Trash2 size={14} /> Delete
+              </Button>
             </li>)}
           </ul>
         ) : <p className="p-5 text-sm text-gray-400">No categories yet.</p>}

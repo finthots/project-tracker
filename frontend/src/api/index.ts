@@ -2,13 +2,13 @@ import api from "./client";
 import type {
   User, Project, Task, Milestone, MilestoneTemplate,
   Comment, ActivityLog, Venture, ProjectCategory, ProjectStatus,
-  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority,
+  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption,
 } from "./types";
 
 export type {
   User, Project, Task, Milestone, MilestoneTemplate,
   Comment, ActivityLog, Venture, ProjectCategory, ProjectStatus,
-  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority,
+  TaskStatus, TaskPriority, MilestoneStatus, Todo, TodoPriority, CategoryOption,
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -35,8 +35,9 @@ export const createUser = (data: Partial<User> & { password: string }) =>
   api.post<User>("/users", data);
 export const updateUser = (id: number, data: Partial<User> & { password?: string }) =>
   api.patch<User>(`/users/${id}`, data);
-export const getCategories = () => api.get<string[]>("/categories");
+export const getCategories = () => api.get<CategoryOption[]>("/categories");
 export const createCategory = (name: string) => api.post<{ name: string }>("/categories", { name });
+export const deleteCategory = (id: number) => api.delete(`/categories/${id}`);
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 export const getProjects = (params?: Record<string, string>) =>

@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/users", views.users_view),
     path("api/users/<int:pk>", views.user_detail),
     path("api/categories", views.categories_view),
+    path("api/categories/<int:pk>", views.category_detail),
     path("api/projects", views.projects_view),
     path("api/projects/<int:pk>", views.project_detail),
     path("api/projects/<int:pk>/tasks", views.project_tasks),
