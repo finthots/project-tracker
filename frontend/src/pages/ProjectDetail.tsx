@@ -88,6 +88,23 @@ export function ProjectDetail() {
     queryKey: ["users"],
     queryFn: () => getUsers().then((r) => r.data),
   });
+  const teamIds = new Set<number>(user ? [user.id] : []);
+  let expandedTeam = true;
+  while (expandedTeam) {
+    expandedTeam = false;
+    for (const member of users) {
+      if (member.reports_to_id && teamIds.has(member.reports_to_id) && !teamIds.has(member.id)) {
+        teamIds.add(member.id);
+        expandedTeam = true;
+      }
+    }
+  }
+  const canManageCollaborators = Boolean(user && project && (
+    isAdmin || user.id === project.created_by_id || teamIds.has(project.created_by_id)
+  ));
+  const collaboratorOptions = users.filter((member) => member.is_active && (
+    isAdmin || teamIds.has(member.id) || member.id === project?.created_by_id
+  ));
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: () => getCategories().then((r) => r.data),
@@ -653,6 +670,8 @@ export function ProjectDetail() {
           users={users}
           categories={categories}
           isAdmin={isAdmin}
+          canManageCollaborators={canManageCollaborators}
+          collaboratorOptions={collaboratorOptions}
           onUpdate={(data) => updateProjectMutation.mutateAsync(data)}
           onDelete={
             isAdmin
@@ -1049,6 +1068,8 @@ function ProjectSettings({
   users,
   categories,
   isAdmin,
+  canManageCollaborators,
+  collaboratorOptions,
   onUpdate,
   onDelete,
   saving,
@@ -1057,6 +1078,8 @@ function ProjectSettings({
   users: any[];
   categories: CategoryOption[];
   isAdmin: boolean;
+  canManageCollaborators: boolean;
+  collaboratorOptions: any[];
   onUpdate: (data: any) => Promise<any>;
   onDelete?: () => void;
   saving: boolean;
@@ -1070,6 +1093,7 @@ function ProjectSettings({
     venture: p.venture ?? "",
     category: p.category ?? "",
     created_by_id: p.created_by_id ? String(p.created_by_id) : "",
+    collaborators_ids: p.collaborators_ids ?? [],
     status: p.status ?? "",
     start_date: toDateInput(p.start_date),
     target_end_date: toDateInput(p.target_end_date),
@@ -1096,13 +1120,15 @@ function ProjectSettings({
     setSaved(false);
     setSaveError("");
     try {
+      const { collaborators_ids, ...projectFields } = form;
       const updated = await onUpdate({
-        ...form,
+        ...projectFields,
         client: form.client || undefined,
         start_date: form.start_date || undefined,
         target_end_date: form.target_end_date || undefined,
         actual_end_date: form.actual_end_date || undefined,
         description: form.description || undefined,
+        ...(canManageCollaborators ? { collaborators_ids } : {}),
       });
       // Re-sync form from the server's response so it reflects what was persisted
       if (updated?.data) setForm(buildForm(updated.data));
@@ -1160,6 +1186,30 @@ function ProjectSettings({
             {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.username})</option>)}
           </Select>
         </div>}
+        <fieldset className="rounded-lg border border-gray-200 p-3" disabled={!canManageCollaborators}>
+          <legend className="px-1 text-sm font-medium text-gray-700">Project collaborators</legend>
+          <p className="mb-2 text-xs text-gray-500">
+            Collaborators can see this project. The project creator, their reporting manager, or an admin can update this list.
+          </p>
+          <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+            {collaboratorOptions.map((member) => (
+              <label key={member.id} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.collaborators_ids.includes(member.id)}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    collaborators_ids: event.target.checked
+                      ? [...current.collaborators_ids, member.id]
+                      : current.collaborators_ids.filter((id: number) => id !== member.id),
+                  }))}
+                />
+                {member.full_name}
+              </label>
+            ))}
+            {collaboratorOptions.length === 0 && <p className="text-sm text-gray-500">No eligible members.</p>}
+          </div>
+        </fieldset>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
           <Select value={form.status} onChange={(e) => set("status", e.target.value)}>

@@ -58,6 +58,8 @@ def project_data(project):
             "start_date": date_value(project.start_date), "target_end_date": date_value(project.target_end_date),
             "actual_end_date": date_value(project.actual_end_date), "description": project.description,
             "created_by_id": project.created_by_id, "created_by": user_brief(project.created_by),
+            "collaborators": [user_brief(user) for user in project.collaborators.all()],
+            "collaborators_ids": list(project.collaborators.values_list("id", flat=True)),
             "created_at": date_value(project.created_at), "updated_at": date_value(project.updated_at),
             "task_count": project.tasks.count(), "done_task_count": project.tasks.filter(status="Done").count()}
 

@@ -41,6 +41,8 @@ export interface Project {
   description?: string;
   created_by_id: number;
   created_by?: UserBrief;
+  collaborators_ids?: number[];
+  collaborators?: UserBrief[];
   created_at?: string;
   updated_at?: string;
   task_count: number;

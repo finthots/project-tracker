@@ -39,6 +39,7 @@ class Project(ExistingTable):
     actual_end_date = models.DateTimeField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="projects_created")
+    collaborators = models.ManyToManyField(User, blank=True, related_name="projects_collaborating")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
 

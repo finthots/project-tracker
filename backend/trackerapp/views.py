@@ -69,6 +69,18 @@ def dashboard_subject(request):
     return subject, None
 
 
+def can_manage_project_collaborators(actor, project):
+    return (actor.role == "admin" or actor.id == project.created_by_id or
+            project.created_by_id in report_ids_for(actor))
+
+
+def collaborator_options_for(actor, project):
+    if actor.role == "admin":
+        return User.objects.filter(is_active=True)
+    team_ids = report_ids_for(actor) | {actor.id, project.created_by_id}
+    return User.objects.filter(is_active=True, id__in=team_ids)
+
+
 def assign_fields(obj, data, fields, date_fields=(), enum_fields=None):
     enum_fields = enum_fields or {}
     for key in fields:
@@ -198,11 +210,13 @@ def projects_view(request):
             subject, denied = dashboard_subject(request)
             if denied:
                 return denied
-            projects = projects.filter(Q(created_by=subject) | Q(tasks__owner=subject)).distinct()
+            projects = projects.filter(Q(created_by=subject) | Q(tasks__owner=subject) |
+                                       Q(collaborators=subject)).distinct()
         elif request.tracker_user.role != "admin":
             visible_user_ids = report_ids_for(request.tracker_user) | {request.tracker_user.id}
             projects = projects.filter(
-                Q(created_by_id__in=visible_user_ids) | Q(tasks__owner_id__in=visible_user_ids)
+                Q(created_by_id__in=visible_user_ids) | Q(tasks__owner_id__in=visible_user_ids) |
+                Q(collaborators=request.tracker_user)
             ).distinct()
         for key in ("venture", "category", "status"):
             value = request.GET.get(key)
@@ -251,6 +265,20 @@ def project_detail(request, pk):
         return error("Method not allowed", 405)
     data = body_data(request)
     before = {"name": project.name, "status": project.status}
+    if "collaborators_ids" in data:
+        if not can_manage_project_collaborators(request.tracker_user, project):
+            return error("Project creator, reporting manager, or admin required to manage collaborators", 403)
+        collaborator_ids = data["collaborators_ids"]
+        if not isinstance(collaborator_ids, list):
+            return error("Collaborators must be a list of users")
+        try:
+            collaborator_ids = {int(user_id) for user_id in collaborator_ids}
+        except (TypeError, ValueError):
+            return error("Invalid collaborator")
+        allowed_ids = set(collaborator_options_for(request.tracker_user, project).values_list("id", flat=True))
+        if not collaborator_ids.issubset(allowed_ids):
+            return error("Choose active users in your reporting team")
+        project.collaborators.set(collaborator_ids)
     try:
         assign_fields(project, data, ("name", "client", "venture", "category", "status", "start_date",
                                       "target_end_date", "actual_end_date", "description"),
@@ -548,7 +576,8 @@ def dashboard_view(request, action):
         return denied
     project_scope = Project.objects.all()
     if user.role != "admin":
-        project_scope = project_scope.filter(Q(created_by=user) | Q(tasks__owner=user)).distinct()
+        project_scope = project_scope.filter(Q(created_by=user) | Q(tasks__owner=user) |
+                                             Q(collaborators=user)).distinct()
     if action == "my-tasks":
         qs = Task.objects.filter(owner_id=user.id).exclude(status="Done").exclude(
             project__status__in=["Completed", "Cancelled"]).select_related("owner")
