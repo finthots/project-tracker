@@ -5,9 +5,9 @@ import {
   getMyTasks, getOverdueTasks, getDueThisWeek,
   getActiveProjects, getRecentActivity, getProjects,
   getDashboardSummary,
-  getUsers,
+  getTodos, getUsers,
 } from "@/api";
-import type { Task, ActivityLog, Project } from "@/api/types";
+import type { Task, ActivityLog, Project, Todo } from "@/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,6 +65,12 @@ export function Dashboard() {
     queryFn: () => getRecentActivity(selectedMemberId).then((r) => r.data),
   });
 
+  const { data: memberTodos = [], isLoading: loadingTodos } = useQuery({
+    queryKey: ["todos", "dashboard", selectedMemberId],
+    queryFn: () => getTodos(false, selectedMemberId).then((r) => r.data),
+    enabled: Boolean(selectedMemberId),
+  });
+
   // Fetch full project list for name/client lookup
   const { data: allProjects = [] } = useQuery({
     queryKey: ["projects", "dashboard", selectedMemberId],
@@ -98,20 +104,36 @@ export function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <SummaryCard title="Active projects" value={summary?.active_projects} icon={<FolderKanban size={18} />} onClick={() => navigate("/")} />
-        <SummaryCard title="My open tasks" value={summary?.my_open_tasks} icon={<CheckSquare size={18} />} onClick={() => document.getElementById("my-tasks")?.scrollIntoView({ behavior: "smooth" })} />
+        <SummaryCard title={selectedMember ? "Open tasks" : "My open tasks"} value={summary?.my_open_tasks} icon={<CheckSquare size={18} />} onClick={() => document.getElementById("my-tasks")?.scrollIntoView({ behavior: "smooth" })} />
         <SummaryCard title="Overdue" value={summary?.overdue_tasks} icon={<AlertTriangle size={18} />} onClick={() => document.getElementById("overdue-tasks")?.scrollIntoView({ behavior: "smooth" })} tone="red" />
-        <SummaryCard title="My to-dos" value={summary?.my_todos} icon={<ListTodo size={18} />} onClick={() => navigate("/todos")} />
+        <SummaryCard title={selectedMember ? "To-dos" : "My to-dos"} value={summary?.my_todos} icon={<ListTodo size={18} />} onClick={() => selectedMember
+          ? document.getElementById("member-todos")?.scrollIntoView({ behavior: "smooth" })
+          : navigate("/todos")} />
       </div>
       <div className="grid gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:grid-cols-2 sm:items-center">
         <span><strong>{summary?.due_this_week ?? "—"}</strong> tasks due this week · <strong>{summary?.completed_tasks ?? "—"}</strong> tasks completed</span>
-        <button onClick={() => navigate("/todos")} className="flex items-center gap-1 font-semibold sm:justify-self-end">Open my to-dos <ArrowRight size={15} /></button>
+        <button onClick={() => selectedMember
+          ? document.getElementById("member-todos")?.scrollIntoView({ behavior: "smooth" })
+          : navigate("/todos")} className="flex items-center gap-1 font-semibold sm:justify-self-end">
+          {selectedMember ? `View ${selectedMember.full_name}'s to-dos` : "Open my to-dos"} <ArrowRight size={15} />
+        </button>
       </div>
+
+      {selectedMember && <div id="member-todos">
+        <Section
+          icon={<ListTodo size={16} className="text-blue-600" />}
+          title={`${selectedMember.full_name}'s To-Dos`}
+          count={memberTodos.length}
+        >
+          <TodoList todos={memberTodos} loading={loadingTodos} />
+        </Section>
+      </div>}
 
       {/* ── My Tasks ─────────────────────────────────────────────────────────── */}
       <div id="my-tasks">
       <Section
         icon={<CheckSquare size={16} className="text-blue-600" />}
-        title="My Tasks"
+        title={selectedMember ? `${selectedMember.full_name}'s Tasks` : "My Tasks"}
         count={myTasks.length}
       >
         <TaskTable
@@ -207,6 +229,32 @@ export function Dashboard() {
           </div>
         )}
       </Section>
+    </div>
+  );
+}
+
+function TodoList({ todos, loading }: { todos: Todo[]; loading: boolean }) {
+  if (loading) return <p className="py-4 text-sm text-gray-400">Loading…</p>;
+  if (todos.length === 0) return <p className="py-4 text-sm text-gray-400">No open to-dos.</p>;
+
+  return (
+    <div className="-mx-5 divide-y divide-gray-100">
+      {todos.map((todo) => {
+        const days = daysToDeadline(todo.due_date);
+        const overdue = days !== null && days < 0;
+        return <div key={todo.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="break-words text-sm font-medium text-gray-900">{todo.title}</p>
+            {todo.notes && <p className="mt-0.5 break-words text-xs text-gray-500">{todo.notes}</p>}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Badge variant={priorityColor[todo.priority] as "default" | "warning" | "danger" | "secondary"}>{todo.priority}</Badge>
+            <span className={`text-xs ${overdue ? "font-semibold text-red-600" : "text-gray-500"}`}>
+              {todo.due_date ? overdue ? `${Math.abs(days!)}d overdue` : `Due ${formatDate(todo.due_date)}` : "No due date"}
+            </span>
+          </div>
+        </div>;
+      })}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProjects, createProject, getMilestoneTemplates, exportAllActiveXlsx, getCategories, getUsers, updateProject } from "@/api";
@@ -46,8 +46,25 @@ export function Projects() {
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
     queryFn: () => getUsers().then((r) => r.data),
-    enabled: isAdmin,
   });
+
+  const reportIds = useMemo(() => {
+    const seen = new Set<number>();
+    let frontier = user ? [user.id] : [];
+    while (frontier.length) {
+      const next = users
+        .filter((member) => frontier.includes(member.reports_to_id ?? -1))
+        .map((member) => member.id)
+        .filter((id) => !seen.has(id));
+      next.forEach((id) => seen.add(id));
+      frontier = next;
+    }
+    return seen;
+  }, [users, user]);
+  const canFilterByMember = isAdmin || reportIds.size > 0;
+  const filterUsers = isAdmin
+    ? users.filter((member) => member.is_active)
+    : users.filter((member) => member.is_active && (member.id === user?.id || reportIds.has(member.id)));
 
   const createMutation = useMutation({
     mutationFn: createProject,
@@ -84,13 +101,15 @@ export function Projects() {
   const hasFilters = Boolean(search || filters.venture || filters.status || filters.category || filters.user_id);
   const creatorControl = (project: Project) => isAdmin ? (
     <label className="flex items-center gap-2 text-xs text-gray-500" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      Creator
+      Created by
       <Select aria-label={`Change creator for ${project.name}`} className="min-h-9 max-w-44" value={String(project.created_by_id)}
         onChange={(e) => ownerMutation.mutate({ projectId: project.id, userId: Number(e.target.value) })}>
         {users.filter((u) => u.is_active).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
       </Select>
     </label>
-  ) : null;
+  ) : (
+    <p className="text-xs text-gray-500">Created by <span className="font-medium text-gray-700">{project.created_by?.full_name ?? "Unknown"}</span></p>
+  );
 
   return (
     <div className="min-w-0">
@@ -118,14 +137,14 @@ export function Projects() {
           {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"
             className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"><X size={16} /></button>}
         </div>
-        {isAdmin && <Select
+        {canFilterByMember && <Select
           className="col-span-2 min-h-11 min-w-0 text-sm sm:w-48"
           aria-label="Filter projects by member"
           value={filters.user_id}
           onChange={(e) => setFilter("user_id", e.target.value)}
         >
           <option value="">All Projects</option>
-          {users.filter((u) => u.is_active && u.role !== "admin").map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+          {filterUsers.map((member) => <option key={member.id} value={member.id}>{member.full_name}</option>)}
         </Select>}
         <Select
           className="min-h-11 min-w-0 text-sm sm:w-36"
@@ -257,7 +276,7 @@ export function Projects() {
           <table className="min-w-[720px] w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {["Name", "Client", "Venture", "Status", "Progress", "Deadline", ...(isAdmin ? ["Creator"] : [])].map((h) => (
+                {["Name", "Client", "Venture", "Status", "Progress", "Deadline", "Created by"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     {h}
                   </th>
@@ -265,7 +284,7 @@ export function Projects() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {!isLoading && visibleProjects.length === 0 && <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-10 text-center text-sm text-gray-500">{hasFilters ? "No projects match your filters." : "No projects yet."}</td></tr>}
+              {!isLoading && visibleProjects.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">{hasFilters ? "No projects match your filters." : "No projects yet."}</td></tr>}
               {visibleProjects.map((p) => {
                 const complete = p.status === "Completed" || p.status === "Cancelled" || (p.task_count > 0 && p.done_task_count === p.task_count);
                 const days = complete ? null : daysToDeadline(p.target_end_date);
@@ -291,7 +310,7 @@ export function Projects() {
                     <td className={`px-4 py-3 ${deadlineClass(days)}`}>
                       {complete ? "Complete" : days === null ? "—" : days < 0 ? `${Math.abs(days)}d overdue` : `${days}d`}
                     </td>
-                    {isAdmin && <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>{creatorControl(p)}</td>}
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>{creatorControl(p)}</td>
                   </tr>
                 );
               })}

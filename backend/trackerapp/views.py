@@ -655,7 +655,10 @@ def dashboard_view(request, action):
 @require_user
 def todos_view(request):
     if request.method == "GET":
-        qs = Todo.objects.filter(user=request.tracker_user)
+        user, denied = dashboard_subject(request)
+        if denied:
+            return denied
+        qs = Todo.objects.filter(user=user)
         if request.GET.get("include_done", "false").lower() != "true":
             qs = qs.filter(is_done=False)
         return data_list(qs.order_by("is_done", "due_date", "-created_at"), todo_data)

@@ -112,8 +112,8 @@ export const askTracker = (question: string) =>
   api.post<{ answer: string; source: "local" | "tracker" | "huggingface" }>("/ai/ask", { question });
 
 // ── Todos ─────────────────────────────────────────────────────────────────────
-export const getTodos = (includeDone = false) =>
-  api.get<Todo[]>(`/todos?include_done=${includeDone}`);
+export const getTodos = (includeDone = false, userId?: number) =>
+  api.get<Todo[]>("/todos", { params: { include_done: includeDone, ...(userId ? { user_id: userId } : {}) } });
 export const createTodo = (data: Partial<Todo>) => api.post<Todo>("/todos", data);
 export const updateTodo = (id: number, data: Partial<Todo>) =>
   api.patch<Todo>(`/todos/${id}`, data);
