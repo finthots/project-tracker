@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/projects/<int:pk>", views.project_detail),
     path("api/projects/<int:pk>/tasks", views.project_tasks),
     path("api/projects/<int:pk>/milestones", views.project_milestones),
+    path("api/projects/<int:pk>/milestones/apply-template", views.apply_milestone_template),
     path("api/projects/<int:pk>/comments", views.project_comments),
     path("api/tasks/reorder", views.reorder_tasks),
     path("api/tasks/<int:pk>", views.task_detail),

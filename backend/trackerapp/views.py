@@ -461,6 +461,35 @@ def project_milestones(request, pk):
 
 
 @require_user
+def apply_milestone_template(request, pk):
+    if request.method != "POST":
+        return error("Method not allowed", 405)
+    project = Project.objects.filter(pk=pk).first()
+    if not project:
+        return error("Project not found", 404)
+    if Milestone.objects.filter(project=project).exists():
+        return error("A template can only be applied when the project has no milestones", 409)
+    template_id = body_data(request).get("template_id")
+    template = MilestoneTemplate.objects.prefetch_related("items").filter(pk=template_id).first()
+    if not template:
+        return error("Milestone template not found", 404)
+    items = list(template.items.order_by("sequence", "id"))
+    if not items:
+        return error("This template has no milestones")
+    with transaction.atomic():
+        milestones = [
+            Milestone(project=project, name=item.name, sequence=item.sequence)
+            for item in items
+        ]
+        Milestone.objects.bulk_create(milestones)
+    log_activity(request.tracker_user, "project", project.id, "apply_milestone_template",
+                 after={"template_id": template.id, "template_name": template.name,
+                        "milestone_count": len(milestones)})
+    return data_list(Milestone.objects.filter(project=project).order_by("sequence", "id"),
+                     milestone_data)
+
+
+@require_user
 def milestone_detail(request, pk):
     m = not_found(Milestone, pk)
     if not m:

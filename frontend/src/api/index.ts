@@ -66,6 +66,8 @@ export const getMilestones = (projectId: number) =>
   api.get<Milestone[]>(`/projects/${projectId}/milestones`);
 export const createMilestone = (projectId: number, data: Partial<Milestone>) =>
   api.post<Milestone>(`/projects/${projectId}/milestones`, data);
+export const applyMilestoneTemplate = (projectId: number, templateId: number) =>
+  api.post<Milestone[]>(`/projects/${projectId}/milestones/apply-template`, { template_id: templateId });
 export const updateMilestone = (id: number, data: Partial<Milestone>) =>
   api.patch<Milestone>(`/milestones/${id}`, data);
 export const deleteMilestone = (id: number) => api.delete(`/milestones/${id}`);

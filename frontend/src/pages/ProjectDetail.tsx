@@ -5,9 +5,9 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import {
   getTasks, getMilestones, getProjectComments, getActivity, addProjectComment,
-  createTask, updateTask, deleteTask, reorderTasks, createMilestone, updateMilestone,
+  createTask, updateTask, deleteTask, reorderTasks, createMilestone, applyMilestoneTemplate, updateMilestone,
   deleteMilestone, updateProject, deleteProject, exportProjectXlsx, exportProjectPdf,
-  getProject, getUsers, getCategories,
+  getProject, getUsers, getCategories, getMilestoneTemplates,
 } from "@/api";
 import type {
   Task, Milestone, Comment, ActivityLog,
@@ -53,6 +53,8 @@ export function ProjectDetail() {
   const [addTaskPrefill, setAddTaskPrefill] = useState<Partial<Task> | null>(null);
   const [showInlineAdd, setShowInlineAdd] = useState(false);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateError, setTemplateError] = useState("");
   const [commentBody, setCommentBody] = useState("");
 
   // Project data
@@ -69,6 +71,12 @@ export function ProjectDetail() {
   const { data: milestones = [] } = useQuery({
     queryKey: ["milestones", projectId],
     queryFn: () => getMilestones(projectId).then((r) => r.data),
+  });
+
+  const { data: milestoneTemplates = [] } = useQuery({
+    queryKey: ["milestoneTemplates"],
+    queryFn: () => getMilestoneTemplates().then((r) => r.data),
+    enabled: milestones.length === 0,
   });
 
   const { data: comments = [] } = useQuery({
@@ -161,6 +169,19 @@ export function ProjectDetail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["milestones", projectId] });
       setShowAddMilestone(false);
+    },
+  });
+
+  const applyTemplateMutation = useMutation({
+    mutationFn: (templateId: number) => applyMilestoneTemplate(projectId, templateId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["milestones", projectId] });
+      setSelectedTemplateId("");
+      setTemplateError("");
+    },
+    onError: (error: unknown) => {
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setTemplateError(detail ?? "Could not apply milestone template");
     },
   });
 
@@ -577,7 +598,35 @@ export function ProjectDetail() {
           {/* Milestones: editable cards on phones, table on larger screens */}
           <div className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white md:overflow-x-auto">
             {sortedMilestones.length === 0 ? (
-              <p className="text-center text-gray-400 py-10 text-sm">No milestones yet.</p>
+              <div className="mx-auto max-w-xl space-y-3 px-4 py-8 text-center">
+                <p className="text-sm font-medium text-gray-700">No milestones yet</p>
+                <p className="text-xs text-gray-500">Apply a milestone template to add the complete set at once.</p>
+                {milestoneTemplates.length > 0 ? (
+                  <div className="mx-auto flex max-w-md flex-col gap-2 sm:flex-row">
+                    <Select value={selectedTemplateId} onChange={(event) => {
+                      setSelectedTemplateId(event.target.value);
+                      setTemplateError("");
+                    }} aria-label="Milestone template type">
+                      <option value="">Choose template type</option>
+                      {milestoneTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))}
+                    </Select>
+                    <Button type="button" className="min-h-11 shrink-0"
+                      disabled={!selectedTemplateId || applyTemplateMutation.isPending}
+                      onClick={() => applyTemplateMutation.mutate(Number(selectedTemplateId))}>
+                      {applyTemplateMutation.isPending ? "Applying…" : "Apply Template"}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700">
+                    {isAdmin
+                      ? "No templates are available. Create one from Admin → Milestone Templates."
+                      : "No milestone templates are available. Ask an administrator to create one."}
+                  </p>
+                )}
+                {templateError && <p role="alert" className="text-xs text-red-600">{templateError}</p>}
+              </div>
             ) : (
               <>
               <div className="divide-y divide-gray-100 md:hidden">
