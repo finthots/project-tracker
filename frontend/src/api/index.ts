@@ -73,6 +73,8 @@ export const getMilestoneTemplates = () =>
   api.get<MilestoneTemplate[]>("/milestone-templates");
 export const createMilestoneTemplate = (data: Partial<MilestoneTemplate>) =>
   api.post<MilestoneTemplate>("/milestone-templates", data);
+export const deleteMilestoneTemplate = (id: number) =>
+  api.delete(`/milestone-templates/${id}`);
 
 // ── Comments ──────────────────────────────────────────────────────────────────
 export const getProjectComments = (projectId: number) =>

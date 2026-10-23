@@ -14,6 +14,7 @@ import { aiEnabled } from "@/config/features";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { Categories } from "@/pages/Categories";
 import { Notifications } from "@/pages/Notifications";
+import { MilestoneTemplates } from "@/pages/MilestoneTemplates";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +76,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute adminOnly />}>
         <Route path="/users" element={<Users />} />
         <Route path="/categories" element={<Categories />} />
+        <Route path="/milestone-templates" element={<MilestoneTemplates />} />
       </Route>
 
       {/* Fallback */}

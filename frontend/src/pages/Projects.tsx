@@ -326,6 +326,7 @@ export function Projects() {
         loading={createMutation.isPending}
         templates={templates}
         categories={categories}
+        isAdmin={isAdmin}
       />
     </div>
   );
@@ -334,7 +335,7 @@ export function Projects() {
 // ── Create project dialog ─────────────────────────────────────────────────────
 
 function CreateProjectDialog({
-  open, onClose, onSubmit, loading, templates, categories,
+  open, onClose, onSubmit, loading, templates, categories, isAdmin,
 }: {
   open: boolean;
   onClose: () => void;
@@ -342,6 +343,7 @@ function CreateProjectDialog({
   loading: boolean;
   templates: any[];
   categories: CategoryOption[];
+  isAdmin: boolean;
 }) {
   const [form, setForm] = useState({
     name: "", client: "", venture: "Finthots" as Venture,
@@ -397,22 +399,28 @@ function CreateProjectDialog({
             </Select>
           </div>
         </div>
-        {templates.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Milestone Template
-            </label>
-            <Select
-              value={form.milestone_template_id}
-              onChange={(e) => set("milestone_template_id", e.target.value)}
-            >
-              <option value="">None</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </Select>
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Milestone Template
+          </label>
+          <Select
+            value={form.milestone_template_id}
+            onChange={(e) => set("milestone_template_id", e.target.value)}
+            disabled={templates.length === 0}
+          >
+            <option value="">{templates.length ? "None" : "No templates available"}</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </Select>
+          {templates.length === 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              {isAdmin
+                ? "Create one from Admin → Milestone Templates."
+                : "An administrator must create a milestone template first."}
+            </p>
+          )}
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
           <textarea
