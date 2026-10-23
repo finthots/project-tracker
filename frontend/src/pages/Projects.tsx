@@ -23,6 +23,7 @@ export function Projects() {
   const isAdmin = user?.role === "admin";
   const [view, setView] = useState<"card" | "table">("card");
   const [filters, setFilters] = useState({ venture: "", status: "", category: "", user_id: "" });
+  const [sortOrder, setSortOrder] = useState<"name_asc" | "newest" | "oldest">("name_asc");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
@@ -68,8 +69,18 @@ export function Projects() {
 
   const pct = (p: Project) =>
     p.task_count > 0 ? Math.round((p.done_task_count / p.task_count) * 100) : 0;
-  const visibleProjects = projects.filter((p) =>
-    `${p.name} ${p.client ?? ""} ${p.venture} ${p.category}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const visibleProjects = projects
+    .filter((p) =>
+      `${p.name} ${p.client ?? ""} ${p.venture} ${p.category}`.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === "name_asc") {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      }
+
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return sortOrder === "newest" ? bCreated - aCreated : aCreated - bCreated;
+    });
   const hasFilters = Boolean(search || filters.venture || filters.status || filters.category || filters.user_id);
   const creatorControl = (project: Project) => isAdmin ? (
     <label className="flex items-center gap-2 text-xs text-gray-500" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -142,6 +153,16 @@ export function Projects() {
         >
           <option value="">All Categories</option>
           {categories.map((c) => <option key={c.id}>{c.name}</option>)}
+        </Select>
+        <Select
+          className="col-span-2 min-h-11 min-w-0 text-sm sm:w-44"
+          aria-label="Sort projects"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as "name_asc" | "newest" | "oldest")}
+        >
+          <option value="name_asc">Alphabetical: A to Z</option>
+          <option value="newest">Newest to Oldest</option>
+          <option value="oldest">Oldest to Newest</option>
         </Select>
         <div className="ml-auto hidden gap-1 md:flex" aria-label="Project view">
           <button
